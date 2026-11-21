@@ -1,0 +1,42 @@
+{
+  "product": "QuakeSense",
+  "mode": "operate",
+  "world": "Geophysical field plot printed on warm light survey paper over a precise ink-navy plotting bed",
+  "colors": {
+    "paper": "#f7f4eb",
+    "ink": "#162626",
+    "muted": "#52645e",
+    "line": "#cdd4c9",
+    "plot": "#142826",
+    "pWave": "#8de1ca",
+    "sWave": "#f5b47d",
+    "accent": "#125c49",
+    "card": "#fbf9f2",
+    "warn": "#9a5518"
+  },
+  "type": {
+    "display": "Georgia, 'Bitstream Charter', Charter, serif",
+    "body": "'Avenir Next', 'Segoe UI', system-ui, -apple-system, sans-serif",
+    "mono": "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+    "monoUse": "calibrated values only"
+  },
+  "layout": {
+    "target": "1280x800",
+    "split": "map left ~62%, sites sidebar right ~38%",
+    "collapse": "single column below 940px, map first",
+    "mobileMin": "390px, no overflow"
+  },
+  "motion": {
+    "authored": "learner-triggered wavefront playback, pauseable, never auto-started",
+    "transitions": "160ms state feedback, disabled under prefers-reduced-motion"
+  },
+  "bans": [
+    "kicker or eyebrow above the title",
+    "tagline or helper line under the title",
+    "em or en dashes in copy",
+    "scroll-behavior smooth",
+    "gradient text",
+    "innerHTML or unsanitized DOM injection",
+    "emoji or unicode icon stand-ins"
+  ]
+}
