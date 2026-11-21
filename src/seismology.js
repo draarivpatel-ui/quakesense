@@ -40,7 +40,9 @@ function radialRay(r, z, phase, model) {
 }
 
 export function arrival(source, receiver, phase, model = UNIFORM) {
-  if (!Number.isFinite(source.z) || source.z < 0) throw new RangeError('Depth must be nonnegative');
+  if (![source.x, source.y, source.z, receiver.x, receiver.y].every(Number.isFinite) || source.z < 0) {
+    throw new RangeError('Coordinates must be finite and depth nonnegative');
+  }
   const dx = source.x - receiver.x;
   const dy = source.y - receiver.y;
   const r = Math.hypot(dx, dy);
@@ -52,7 +54,8 @@ export function arrival(source, receiver, phase, model = UNIFORM) {
 }
 
 export function waveRadius(elapsed, depth, phase, model = UNIFORM) {
-  if (!Number.isFinite(elapsed) || elapsed < radialRay(0, depth, phase, model).time) return null;
+  if (!Number.isFinite(elapsed) || !Number.isFinite(depth) || depth < 0 ||
+      elapsed < radialRay(0, depth, phase, model).time) return null;
   if (model.interface === undefined) {
     return Math.sqrt(Math.max(0, (elapsed * speed(model, phase)) ** 2 - depth ** 2));
   }
@@ -67,6 +70,7 @@ export function waveRadius(elapsed, depth, phase, model = UNIFORM) {
 }
 
 export function wadati(pairs, model = UNIFORM) {
+  if (!Array.isArray(pairs)) throw new RangeError('Wadati pairs must be an array');
   if (model.interface !== undefined) return null;
   const slope = model.vp / model.vs - 1;
   const origins = pairs.filter(({ p, s }) => Number.isFinite(p) && Number.isFinite(s) && s > p)
@@ -77,7 +81,8 @@ export function wadati(pairs, model = UNIFORM) {
 }
 
 export function azimuthalGap(source, stations) {
-  const angles = stations.filter(({ x, y }) => Math.hypot(x - source.x, y - source.y) > 1e-9)
+  const angles = stations.filter(({ x, y }) => Number.isFinite(x) && Number.isFinite(y) &&
+    Math.hypot(x - source.x, y - source.y) > 1e-9)
     .map(({ x, y }) => (Math.atan2(x - source.x, y - source.y) + TAU) % TAU).sort((a, b) => a - b);
   if (angles.length < 2) return 360;
   const max = Math.max(angles[0] + TAU - angles.at(-1), ...angles.slice(1).map((a, i) => a - angles[i]));
@@ -145,20 +150,25 @@ export function locate(observations, model = UNIFORM) {
   if (stations.length < 4) return { ok: false, reason: 'Need four distinct stations.' };
   if (!hasAperture(stations)) return { ok: false, reason: 'Stations are collinear.' };
   const asSource = ([x, y, z, t0]) => ({ x, y, z, t0 });
+  // Residuals are time differences, so shifting every pick by the earliest
+  // epoch leaves the solution identical while keeping it precise at any
+  // absolute magnitude of the reported times.
+  const tShift = Math.min(...picks.map(p => p.time));
+  const obs = picks.map(p => ({ ...p, time: p.time - tShift }));
   const evaluate = u => {
     const source = asSource(u);
-    const forward = picks.map(p => arrival(source, p, p.phase, model));
-    const r = forward.map((p, i) => picks[i].time - p.time);
+    const forward = obs.map(p => arrival(source, p, p.phase, model));
+    const r = forward.map((p, i) => obs[i].time - p.time);
     return { r, j: forward.map(p => p.jacobian), cost: r.reduce((sum, v) => sum + v * v, 0) };
   };
   const center = k => stations.reduce((sum, s) => sum + s[k], 0) / stations.length;
-  const first = picks.reduce((a, b) => a.time < b.time ? a : b);
+  const first = obs.reduce((a, b) => a.time < b.time ? a : b);
   const seeds = [[center('x'), center('y')], [first.x, first.y]];
   const depths = model.interface === undefined ? [4, 18, 38] : [3, 7, 14, 32];
   let winner;
   for (const [x, y] of seeds) for (const z of depths) {
     const start = { x, y, z, t0: 0 };
-    const t0 = picks.reduce((sum, p) => sum + p.time - arrival(start, p, p.phase, model).time, 0) / picks.length;
+    const t0 = obs.reduce((sum, p) => sum + p.time - arrival(start, p, p.phase, model).time, 0) / obs.length;
     let u = [x, y, z, t0];
     let e = evaluate(u);
     let lambda = 1e-3;
@@ -183,9 +193,11 @@ export function locate(observations, model = UNIFORM) {
     if (winner.cost < 1e-24) break;
   }
   const source = asSource(winner.u);
+  source.t0 += tShift;
   const normal = matrix(winner.j);
-  const rms = Math.sqrt(winner.cost / picks.length);
-  if (source.z <= 1e-7 || !linearSolve(normal, [1, 0, 0, 0], 1e-11)) {
+  const rms = Math.sqrt(winner.cost / obs.length);
+  if (!Number.isFinite(rms)) return { ok: false, reason: 'Picks are numerically inconsistent.' };
+  if (source.z <= 1e-4 || !linearSolve(normal, [1, 0, 0, 0], 1e-11)) {
     return { ok: false, reason: 'Depth and origin time are not resolved.' };
   }
   return { ok: true, source, rms, ...geometry(source, stations, model) };
@@ -212,11 +224,15 @@ export function siteLead(source, site, alert, model = UNIFORM) {
 
 // An illustrative log-distance intensity proxy, not a calibrated loss model.
 export function intensity(magnitude, distance) {
+  if (!Number.isFinite(magnitude) || !Number.isFinite(distance)) {
+    throw new RangeError('Magnitude and distance must be finite');
+  }
   return Math.max(1, Math.min(12, 1.5 * magnitude + 1.5 - 3 * Math.log10(Math.max(1, distance))));
 }
 
 export function intensityRadius(magnitude, depth, level) {
   if (level <= 1 || level > 12) return null;
+  if (!Number.isFinite(magnitude) || !Number.isFinite(depth) || depth < 0) return null;
   const d = 10 ** ((1.5 * magnitude + 1.5 - level) / 3);
   return d > depth && d >= 1 ? Math.sqrt(d * d - depth * depth) : null;
 }

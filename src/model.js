@@ -54,6 +54,7 @@ export const PRESETS = [
 ];
 
 function seedFor(id, seed) {
+  if (typeof id !== 'string') throw new RangeError('Station id must be a string');
   for (const c of id) seed = Math.imul(seed ^ c.codePointAt(0), 16777619);
   return seed >>> 0;
 }
@@ -102,11 +103,13 @@ export function solveAt(run, time) {
     cache = new Map();
     solveCache.set(run, cache);
   }
-  // A fixed run's set of visible picks only grows; equal counts imply equal observations.
-  if (!cache.has(visible.length)) {
-    cache.set(visible.length, locate(visible.map(s => ({ x: s.x, y: s.y, time: s.pick, phase: 'P' })), run.model));
+  // The locate inputs fingerprint the visible set: two calls with the same
+  // observations share a result, and a mutated pick can never hit a stale one.
+  const key = visible.map(s => `${s.x},${s.y},${s.pick}`).join('|');
+  if (!cache.has(key)) {
+    cache.set(key, locate(visible.map(s => ({ x: s.x, y: s.y, time: s.pick, phase: 'P' })), run.model));
   }
-  return cache.get(visible.length);
+  return cache.get(key);
 }
 
 export function compareRuns(base, run) {

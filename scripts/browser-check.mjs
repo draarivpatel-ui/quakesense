@@ -567,10 +567,22 @@ async function main() {
   });
   await cdp.send('Emulation.setEmulatedMedia', { media: '' }, sid);
   await click('#close-drill');
+  // An idle headless page turns hidden and stops producing frames, and Blink
+  // dispatches the dialog 'close' event on a rendering-coupled task: force a
+  // frame so the queued event fires here (same trick as the playback check).
+  await cdp.send('Page.captureScreenshot', { format: 'png' }, sid).catch(() => {});
   await assertCheck('closing the dialog returns focus to its opener', async () => {
     assert.equal(await evaluate(`${sel('drill')}.open`), false);
     assert.equal(await evaluate(`document.activeElement && document.activeElement.id`), 'open-drill');
   });
+  await cdp.send('Emulation.setEmulatedMedia', { media: 'print' }, sid);
+  await waitFor(`document.getElementById('drill-content').childElementCount === 0`, 'drill content cleared on close');
+  await assertCheck('a closed dialog prints nothing and the workbench prints', async () => {
+    assert.equal(await evaluate(`getComputedStyle(document.getElementById('drill')).display`), 'none');
+    assert.notEqual(await evaluate(`getComputedStyle(document.querySelector('main')).display`), 'none');
+  });
+  await cdp.send('Emulation.setEmulatedMedia', { media: '' }, sid);
+  await sleep(150);
 
   const external = requests.filter(u => u && !u.startsWith(origin) && !u.startsWith('data:') && !u.startsWith('blob:') && !u.startsWith('devtools:'));
   check('desktop: no cross-origin requests', external.length === 0, external.slice(0, 3).join(', '));

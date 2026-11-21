@@ -3,6 +3,7 @@ import { intensityRadius } from './seismology.js';
 const rad = Math.PI / 180;
 
 export function localToLonLat(x, y, { lon, lat }) {
+  if (![x, y, lon, lat].every(Number.isFinite)) throw new RangeError('Coordinates must be finite');
   const d = Math.hypot(x, y) / 6371.0088;
   if (d === 0) return [lon, lat];
   const origin = lat * rad;
@@ -29,7 +30,7 @@ export function toGeoJSON(run) {
   const features = [
     point(source, { kind: 'synthetic-epicenter', depthKm: source.z, magnitude: source.magnitude }),
     ...stations.map(s => point(s, { kind: 'station', id: s.id, name: s.name, triggerConfirmedS: s.detected })),
-    ...sites.map(s => point(s, { kind: s.kind.toLowerCase(), id: s.id, name: s.name, warningLeadS: s.lead, illustrativeMMI: s.mmi })),
+    ...sites.map(s => point(s, { kind: String(s.kind ?? 'site').toLowerCase(), id: s.id, name: s.name, warningLeadS: s.lead, illustrativeMMI: s.mmi })),
   ];
   if (blind.radius > 0) features.push(circle(blind.radius, { kind: 'blind-zone', radiusKm: blind.radius, areaKm2: blind.area }));
   for (const level of [4, 5, 6, 7, 8]) {
@@ -41,10 +42,10 @@ export function toGeoJSON(run) {
 
 export function csvCell(value) {
   if (value == null) return '';
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
   let text = String(value);
   // Neutralize formulas even if a spreadsheet first strips invisible or whitespace prefixes.
-  const prefix = /^[\p{White_Space}\p{Cc}\p{Cf}]*/u.exec(text)[0];
+  const prefix = /^[\p{White_Space}\p{Cc}\p{Cf}\p{M}]*/u.exec(text)[0];
   if (/^[=+\-@]/.test(text.slice(prefix.length)) || /[\t\r\n]/.test(prefix)) text = `'${text}`;
   return `"${text.replaceAll('"', '""')}"`;
 }

@@ -12,7 +12,8 @@ export function mulberry32(seed) {
 }
 
 export function seismogram({ p = null, s = null, seed = 1, snr = 8, start = -2, end = 48, rate = SAMPLE_RATE } = {}) {
-  if (![start, end, snr, rate].every(Number.isFinite) || end <= start || rate < 1 || snr < 0) {
+  if (![start, end, snr, rate].every(Number.isFinite) || end <= start || rate < 1 || snr < 0 ||
+      (p !== null && !Number.isFinite(p)) || (s !== null && !Number.isFinite(s))) {
     throw new RangeError('Invalid trace parameters');
   }
   const rnd = mulberry32(seed);
@@ -36,6 +37,11 @@ export function seismogram({ p = null, s = null, seed = 1, snr = 8, start = -2, 
 
 export function pickP(trace, settings = PICKER) {
   const { shortWindow, longWindow, triggerRatio, sustain } = { ...PICKER, ...settings };
+  if (!trace || !Number.isFinite(trace.rate) || !Number.isFinite(trace.start) || !(trace.length >= 1) ||
+      !Array.isArray(trace.components) || !trace.components.length ||
+      !trace.components.every(c => c && c.length >= trace.length)) {
+    throw new RangeError('Invalid trace');
+  }
   const { components, rate, start, length } = trace;
   const ns = Math.round(shortWindow * rate);
   const nl = Math.round(longWindow * rate);
@@ -64,6 +70,10 @@ export function pickP(trace, settings = PICKER) {
 }
 
 export function pickerSweep(levels = [2, 3, 4, 6, 8, 12], trials = 16, settings = PICKER) {
+  if (!Array.isArray(levels) || !levels.every(l => Number.isFinite(l) && l >= 0) ||
+      !Number.isInteger(trials) || trials < 1) {
+    throw new RangeError('Invalid sweep parameters');
+  }
   return levels.map(snr => {
     const errors = [];
     for (let seed = 1; seed <= trials; seed++) {

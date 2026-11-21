@@ -8,7 +8,7 @@ QuakeSense is a classroom workbench for exploring why earthquake warnings can re
 npm start
 ```
 
-Open the loopback address printed in the terminal. Node 22+ is enough. No install, API keys, internet connection, or runtime packages are needed. The static application can also be served from an HTTPS subdirectory. ES modules require HTTP(S), not opening `index.html` directly as a file.
+Open the loopback address printed in the terminal. Node 22+ is enough. No install, API keys, internet connection, or runtime packages are needed. The static application can also be served from an HTTPS subdirectory; every asset path is relative, and static hosts are expected to redirect the bare directory name to the trailing-slash URL. ES modules require HTTP(S), not opening `index.html` directly as a file.
 
 ## Try a three-minute exercise
 

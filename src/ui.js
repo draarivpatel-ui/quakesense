@@ -666,8 +666,14 @@ function wireDrill() {
     els.drill.showModal();
     els.closeDrill.focus();
   });
-  els.closeDrill.addEventListener('click', () => els.drill.close());
-  els.drill.addEventListener('close', () => els.openDrill.focus());
+  els.closeDrill.addEventListener('click', () => {
+    els.drillContent.replaceChildren();
+    els.drill.close();
+  });
+  els.drill.addEventListener('close', () => {
+    els.drillContent.replaceChildren();
+    els.openDrill.focus();
+  });
   els.printDrill.addEventListener('click', () => window.print());
   els.langEn.addEventListener('click', () => setDrillLang('en'));
   els.langEs.addEventListener('click', () => setDrillLang('es'));

@@ -149,3 +149,67 @@ test('isoseismal levels above the surface maximum have no radius', () => {
   assert.equal(intensityRadius(5.6, 13, 8), null);
   assert.equal(intensityRadius(5.6, 13, 1), null);
 });
+
+for (const t0 of [1e6, 1e10]) {
+  test(`inversion stays accurate at absolute epoch ${t0}`, () => {
+    const source = { x: 3, y: -4, z: 12, t0 };
+    const fit = locate(measure(source, points, UNIFORM), UNIFORM);
+    assert.equal(fit.ok, true, fit.reason);
+    assert.ok(Math.hypot(fit.source.x - 3, fit.source.y + 4) < 1e-4);
+    assert.ok(Math.abs(fit.source.z - 12) < 1e-3);
+    near(fit.source.t0, t0, 1);
+  });
+}
+
+test('inversion reports an honest nonzero rms where epoch quantization degrades data', () => {
+  const source = { x: 3, y: -4, z: 12, t0: 1e15 };
+  const fit = locate(measure(source, points, UNIFORM), UNIFORM);
+  if (fit.ok) assert.ok(fit.rms > 1e-9, `false zero rms at epoch 1e15 (got ${fit.rms})`);
+});
+
+for (const times of [1e300, -1e290]) {
+  test(`unresolvable picks at epoch ${times} fail closed instead of reporting a perfect fit`, () => {
+    const obs = points.flatMap(s => ['P', 'S'].map(phase => ({ ...s, phase, time: times })));
+    const fit = locate(obs, UNIFORM);
+    assert.ok(!fit.ok || fit.rms > 1e-9, `false zero-rms acceptance: ${JSON.stringify(fit.source)}`);
+  });
+}
+
+test('mixed-magnitude inconsistent picks fail closed rather than returning an infinite rms fit', () => {
+  const obs = points.flatMap(s => [{ ...s, phase: 'P', time: 1e300 }, { ...s, phase: 'S', time: 3 }]);
+  assert.equal(locate(obs, UNIFORM).ok, false);
+});
+
+test('surface source depth is honestly unresolved, not a confident near-zero number', () => {
+  const fit = locate(measure({ x: 4, y: 9, z: 0, t0: 1 }, points, UNIFORM), UNIFORM);
+  assert.equal(fit.ok, false);
+  assert.match(fit.reason, /not resolved/);
+});
+
+test('arrival rejects non-finite source and receiver coordinates', () => {
+  assert.throws(() => arrival({ x: NaN, y: 0, z: 5 }, { x: 1, y: 1 }, 'P'), RangeError);
+  assert.throws(() => arrival({ x: Infinity, y: 0, z: 5 }, { x: 1, y: 1 }, 'P'), RangeError);
+  assert.throws(() => arrival({ x: 0, y: 0, z: 5 }, { x: 1, y: NaN }, 'S'), RangeError);
+  assert.throws(() => arrival({ x: 0, y: 0, z: -1 }, { x: 1, y: 1 }, 'P'), RangeError);
+});
+
+test('waveRadius and intensity helpers reject impossible inputs without fabricating values', () => {
+  assert.equal(waveRadius(5, -3, 'P'), null);
+  assert.equal(waveRadius(5, NaN, 'P'), null);
+  assert.equal(waveRadius(NaN, 5, 'P'), null);
+  assert.throws(() => intensity(NaN, 5), RangeError);
+  assert.throws(() => intensity(6, NaN), RangeError);
+  assert.equal(intensityRadius(NaN, 2, 6), null);
+  assert.equal(intensityRadius(6, -2, 6), null);
+  assert.throws(() => wadati(null), RangeError);
+  assert.equal(azimuthalGap({ x: 0, y: 0 }, [{ x: Infinity, y: 0 }, { x: 10, y: 0 }, { x: 0, y: 10 }, { x: -5, y: -5 }]), 135);
+});
+
+test('layered arrival is finite and continuous across the interface depth', () => {
+  const receiver = { x: 40, y: 0 };
+  const below = arrival({ x: 0, y: 0, z: 8.0001 }, receiver, 'P', LAYERED).time;
+  const above = arrival({ x: 0, y: 0, z: 7.9999 }, receiver, 'P', LAYERED).time;
+  const at = arrival({ x: 0, y: 0, z: 8 }, receiver, 'P', LAYERED);
+  assert.ok(Number.isFinite(at.time) && at.jacobian.every(Number.isFinite));
+  assert.ok(Math.abs(below - above) < 1e-3, `discontinuity ${below - above}`);
+});

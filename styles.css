@@ -573,8 +573,8 @@ dialog#drill::backdrop { background: rgba(22, 38, 38, 0.45); }
 @media print {
   @page { margin: 0.7in; }
   body { background: #fff; }
-  body > *:not(dialog#drill) { display: none !important; }
-  dialog#drill {
+  body:has(> dialog#drill[open]) > *:not(dialog#drill) { display: none !important; }
+  dialog#drill[open] {
     display: block;
     position: static;
     inset: auto;

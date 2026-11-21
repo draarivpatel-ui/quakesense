@@ -69,3 +69,26 @@ test('invalid trace and detector options are not silently accepted', () => {
   assert.throws(() => pickP(seismogram(), { triggerRatio: NaN }), RangeError);
   assert.throws(() => pickP(seismogram(), { sustain: 1.5 }), RangeError);
 });
+
+test('non-finite phase times are rejected instead of generating NaN traces', () => {
+  assert.throws(() => seismogram({ p: NaN }), RangeError);
+  assert.throws(() => seismogram({ p: -Infinity }), RangeError);
+  assert.throws(() => seismogram({ s: NaN }), RangeError);
+  assert.throws(() => seismogram({ s: 'late' }), RangeError);
+});
+
+test('malformed traces fail with RangeError, never a silent null or TypeError', () => {
+  assert.throws(() => pickP(null), RangeError);
+  assert.throws(() => pickP({ rate: 100, start: 0, length: 10 }), RangeError);
+  assert.throws(() => pickP({ rate: 100, start: 0, length: 10, components: [] }), RangeError);
+  assert.throws(() => pickP({ rate: 100, start: 0, length: 10, components: [new Float32Array(5)] }), RangeError);
+  assert.throws(() => pickP({ rate: NaN, start: 0, length: 10, components: [new Float32Array(10)] }), RangeError);
+});
+
+test('sweep arguments are validated', () => {
+  assert.throws(() => pickerSweep('high'), RangeError);
+  assert.throws(() => pickerSweep([NaN], 4), RangeError);
+  assert.throws(() => pickerSweep([-2], 4), RangeError);
+  assert.throws(() => pickerSweep([3], 0), RangeError);
+  assert.throws(() => pickerSweep([3], 2.5), RangeError);
+});

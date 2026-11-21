@@ -87,7 +87,8 @@ test('local east and north axes map independently around a stated geographic anc
   assert.ok(eLon > a.lon && nLat > a.lat);
 });
 
-for (const prefix of ['', ' ', '\t', '\r', '\n', '\ufeff', '\u200b', '\u2060', '\u00a0', ' \u200b\t']) {
+for (const prefix of ['', ' ', '\t', '\r', '\n', '\ufeff', '\u200b', '\u2060', '\u00a0', ' \u200b\t',
+  '͏', '︀', '⃝', '឴']) {
   for (const op of ['=', '+', '-', '@']) {
     test(`untrusted spreadsheet string ${JSON.stringify(prefix + op)} is neutralized`, () => {
       assert.equal(csvCell(`${prefix}${op}42`), `" '${prefix}${op}42"`.replace('" ', '"'));
@@ -106,6 +107,36 @@ test('CSV maintains negative numeric data and escapes quotes, commas, and intern
   assert.ok(csv.includes(`"'${run.stations[0].name}"`));
   assert.ok(csv.includes('"School"') && csv.includes('"Hospital"') && csv.includes('"Bridge"'));
   assert.ok(csv.endsWith('\r\n'));
+});
+
+test('non-finite numbers export as empty cells, never as text that a sheet could misread', () => {
+  assert.equal(csvCell(NaN), '');
+  assert.equal(csvCell(Infinity), '');
+  assert.equal(csvCell(-Infinity), '');
+  assert.equal(csvCell('NaN'), '"NaN"');
+});
+
+test('malformed export inputs fail loudly or degrade explicitly', () => {
+  const run = simulate(PRESETS[0]);
+  const bare = { ...run, sites: [{ id: 'X', name: 'Unlabeled', x: 1, y: 2, lead: 3 }] };
+  assert.equal(toGeoJSON(bare).features.find(f => f.properties.id === 'X').properties.kind, 'site');
+  assert.throws(() => toGeoJSON({ ...run, sites: [{ id: 'Y', name: 'Nowhere', x: NaN, y: 0 }] }), RangeError);
+  assert.throws(() => localToLonLat(NaN, 0, run.anchor), RangeError);
+  assert.throws(() => localToLonLat(0, 0, { lon: Infinity, lat: 0 }), RangeError);
+});
+
+test('solveAt recomputes when a visible observation mutates and stays cached when it does not', () => {
+  const run = simulate(PRESETS[0]);
+  const t = Math.max(...run.stations.map(s => s.detected));
+  const a = solveAt(run, t);
+  assert.equal(solveAt(run, t), a);
+  run.stations[0].pick += 5;
+  const b = solveAt(run, t);
+  assert.notEqual(b, a, 'stale cached solve returned after pick mutation');
+});
+
+test('stations without a string id fail with RangeError, not a bare TypeError', () => {
+  assert.throws(() => simulate(PRESETS[0], { stations: [{ name: 'Ghost', x: 1, y: 2 }] }), RangeError);
 });
 
 for (const [label, input, text] of [
