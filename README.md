@@ -2,6 +2,8 @@
 
 QuakeSense is a classroom workbench for exploring why earthquake warnings can reach some places ahead of strong shaking but not others. All earthquakes, stations, sites, and traces are synthetic. It does not connect to a sensor feed, predict earthquakes, or send alerts. It is not a replacement for USGS ShakeAlert or school emergency procedures.
 
+**Live demo:** [https://aariv.me/quakesense/](https://aariv.me/quakesense/)
+
 ## Run locally
 
 ```sh
