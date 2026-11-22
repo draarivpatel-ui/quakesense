@@ -1,0 +1,11 @@
+QuakeSense is a classroom workbench for earthquake early warning. Every earthquake, station, site, and trace on this page is synthetic and computed offline, and it is not a live warning or a replacement for USGS ShakeAlert. The Coastal Subduction exercise, magnitude 6.8 with six stations, opens paused at 16.5 seconds with an alert already issued at 14.74.
+
+On the wavefront map the P front races ahead of the S front, and the hatched blind zone marks where strong shaking arrives before any alert could form. Four of six stations have triggered. The modeled leads read 7.49 seconds at Bayview School, 10.96 at Cedar Hospital, and 4.21 at Inlet Bridge.
+
+Playing the timeline lets both fronts expand while site leads count down. The counterfactual network adds two nearer stations or lowers telemetry latency against the same source and noise seeds, so a class can read exactly what better geometry buys in blind-zone area and usable lead.
+
+Each station draws three component seismograms with the STA over LTA pick laid against the reference arrivals. Here the candidate P lands at 6.63 seconds against a 6.59 reference, a 37-millisecond error. The picker bench reruns that trial at fixed noise levels. At signal-to-noise 6, fourteen of sixteen picks fire with 104 milliseconds of mean error; at 8 and above, every pick lands.
+
+The whole network is editable below. A layered crust model refracts first arrivals differently than the uniform one, the coordinate form moves the epicenter or adds a station, and the stations table lists every pick, detection, and timing error. Exports capture the run as GeoJSON, CSV, or an audit JSON with a SHA-256 checksum, and the drill card prints in English or Spanish.
+
+Three hundred forty-nine tests pass across the travel-time models, the picker, the inversion, and the exports. QuakeSense shows why a warning can reach one town ahead of shaking and not the next.
