@@ -158,6 +158,34 @@
       </table>
     </section>
   </div>
+  <div class="lab-grid">
+    <section class="panel" aria-labelledby="lab-title">
+      <div class="panel-head">
+        <h2 id="lab-title">Arrivals and shaking vs distance</h2>
+        <div class="lab-controls">
+          <label for="lab-distance">Site distance (km)</label>
+          <input id="lab-distance" type="number" min="0" max="250" step="1" value="60" required>
+          <label for="lab-soil">Site class</label>
+          <select id="lab-soil"></select>
+        </div>
+      </div>
+      <p class="panel-note">P and S arrivals, the alert instant, the blind span where S beats the alert, usable lead and soil-adjusted MMI, all for the configured source. Curves are modeled, not measured.</p>
+      <div class="chart-frame" role="region" aria-label="Arrivals chart, scroll for more" tabindex="0"><svg id="lab-chart" role="img" aria-label="P and S wave arrivals, alert window and MMI versus epicentral distance"></svg></div>
+      <p id="lab-readout" class="mono-block"></p>
+    </section>
+    <section class="panel" aria-labelledby="retrofit-title">
+      <h2 id="retrofit-title">Preparedness comparator</h2>
+      <p class="panel-note">Deterministic planning-model estimates at the chosen site distance and soil class, not engineering design values. EEW-triggered measures fail where the usable lead cannot cover their activation time; passive measures are always armed, and the hybrid package keeps its passive share without warning.</p>
+      <div class="lab-scroll" role="region" aria-label="Preparedness table, scroll for more columns" tabindex="0">
+        <table id="retrofit">
+          <thead>
+            <tr><th scope="col">Intervention</th><th scope="col">Mode</th><th scope="col">Armed</th><th scope="col">Margin</th><th scope="col">Damage risk</th><th scope="col">Casualty risk</th><th scope="col">Cost</th><th scope="col">Per $100k</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
   <section class="panel exports-panel" aria-labelledby="exports-title">
     <h2 id="exports-title">Export the exercise</h2>
     <p class="panel-note">Exports capture the full configured scenario and the complete modeled run, independent of the playback position.</p>
@@ -167,6 +195,23 @@
       <button type="button" id="audit" class="btn">Audit JSON</button>
     </div>
     <p id="export-status" role="status"></p>
+  </section>
+  <section class="panel brief-panel" aria-labelledby="brief-title">
+    <h2 id="brief-title">Readiness brief and integrity checks</h2>
+    <p class="panel-note">The brief snapshots the configured run, the distance lab and the comparator as JSON, CSV or Markdown, plus an unkeyed SHA-256 tamper-detection digest (not a signature). Copy bookmark link encodes the whole exercise in the page URL.</p>
+    <div class="export-row">
+      <button type="button" id="bookmark-btn" class="btn primary">Copy bookmark link</button>
+      <button type="button" id="brief-json" class="btn">Brief JSON</button>
+      <button type="button" id="brief-csv" class="btn">Brief CSV</button>
+      <button type="button" id="brief-md" class="btn">Brief Markdown</button>
+      <button type="button" id="brief-verify" class="btn">Verify integrity</button>
+      <button type="button" id="brief-tamper" class="btn">Tamper demo</button>
+      <button type="button" id="run-selftests" class="btn">Run self-tests</button>
+    </div>
+    <p id="brief-digest" class="digest"></p>
+    <p id="brief-status" role="status" class="brief-status"></p>
+    <p id="selftest-status" class="brief-status"></p>
+    <ol id="selftest-list" class="selftest-list"></ol>
   </section>
 </main>
 <footer class="app-foot">

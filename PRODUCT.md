@@ -33,6 +33,13 @@ exports the run or prints a bilingual drill card.
 - Every map function (inspect, move epicenter, add station) has a keyboard
   path through mode buttons plus the coordinate form.
 - The P keyboard shortcut is opt-in via an unchecked preference checkbox.
+- The distance lab charts modeled P/S arrivals, usable lead, blind radius and
+  soil-adjusted MMI/PGA on disclosed planning proxies, never measured data.
+- The preparedness comparator reports five deterministic planning measures;
+  EEW-triggered ones honestly fail when the lead cannot cover activation.
+- The readiness brief is JSON/CSV/Markdown plus an unkeyed SHA-256
+  tamper-detection digest, labeled as not a signature; bookmark links encode
+  the whole exercise in a strict `#qs=` URL hash.
 
 ## Voice
 

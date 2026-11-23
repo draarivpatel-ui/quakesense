@@ -1,6 +1,6 @@
 // QuakeSense browser integration check: serves the repo on a loopback
 // ephemeral port, drives a throwaway headless Chrome over CDP with real input
-// events, asserts behavior at 1280x800 and 390x844, verifies exports and the
+// events, asserts behavior at 1440x900 and 390x844, verifies exports and the
 // drill card print path, and captures docs/desktop.png and docs/wavefront.png.
 // Node standard library only.
 import { spawn } from 'node:child_process';
@@ -281,8 +281,8 @@ async function main() {
   const sel = id => `document.getElementById('${id}')`;
   const text = id => `${sel(id)}.textContent`;
 
-  // ============ Desktop pass: 1280x800 ============
-  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false }, sid);
+  // ============ Desktop pass: 1440x900 ============
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false }, sid);
   await navigate(origin);
   await waitFor(`document.querySelectorAll('#presets button').length === 3`, 'scenario tabs');
 
@@ -306,7 +306,7 @@ async function main() {
     assert.equal(await evaluate(`document.querySelector('h1').textContent`), 'QuakeSense');
     assert.match(await evaluate(`document.querySelector('.exercise-note').textContent`), /Synthetic exercise\. Not a live warning or a replacement for USGS ShakeAlert\./);
   });
-  await assertCheck('1280x800: no document x-overflow', async () => {
+  await assertCheck('1440x900: no document x-overflow', async () => {
     assert.ok(await evaluate(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
   });
   await assertCheck('map canvas is painted, not blank', async () => {
@@ -324,7 +324,7 @@ async function main() {
   await mkdir(DOCS, { recursive: true });
   await evaluate(`(async () => { await document.fonts.ready; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); window.scrollTo(0, 0); return true; })()`);
   const shot1 = await capture('desktop.png');
-  check('desktop.png captured at 1280x800', shot1.wpx === 1280 && shot1.hpx === 800, `${shot1.wpx}x${shot1.hpx}`);
+  check('desktop.png captured at 1440x900', shot1.wpx === 1440 && shot1.hpx === 900, `${shot1.wpx}x${shot1.hpx}`);
 
   // Counterfactual toggles via real pointer.
   await click('#denser');
@@ -366,12 +366,12 @@ async function main() {
     return true;
   })()`);
   const shot2 = await capture('wavefront.png');
-  check('wavefront.png captured at 1280x800', shot2.wpx === 1280 && shot2.hpx === 800, `${shot2.wpx}x${shot2.hpx}`);
+  check('wavefront.png captured at 1440x900', shot2.wpx === 1440 && shot2.hpx === 900, `${shot2.wpx}x${shot2.hpx}`);
   await assertCheck('wavefront frame shows map headline and reaches the traces', async () => {
     const m = await evaluate(`document.getElementById('map-title').getBoundingClientRect().top`);
     const t = await evaluate(`document.getElementById('traces').getBoundingClientRect().top`);
-    assert.ok(m >= 0 && m < 800, `map headline top ${m}`);
-    assert.ok(t < 800, `traces top ${t}`);
+    assert.ok(m >= 0 && m < 900, `map headline top ${m}`);
+    assert.ok(t < 900, `traces top ${t}`);
   });
 
   // High quorum: no alert, comparison unavailable, no exceptions.
@@ -525,6 +525,69 @@ async function main() {
     assert.equal(audit.payload.presetId, 'coastal');
   });
 
+  // Distance lab: SVG chart, five-row comparator, live controls.
+  await assertCheck('lab chart draws arrivals plus MMI and the comparator ships five rows', async () => {
+    assert.ok((await evaluate(`document.querySelectorAll('#lab-chart path').length`)) >= 2);
+    assert.equal(await evaluate(`document.querySelectorAll('#retrofit tbody tr').length`), 5);
+    assert.equal(await evaluate(`document.querySelectorAll('#lab-soil option').length`), 4);
+    assert.match(await evaluate(text('lab-readout')), /P \d+\.\d\d s, S \d+\.\d\d s/);
+    assert.match(await evaluate(text('lab-readout')), /Blind radius/);
+    assert.match(await evaluate(`document.getElementById('retrofit').textContent`), /Community resilience package/);
+  });
+  await setField('#lab-distance', '120');
+  await setField('#lab-soil', 'E');
+  await assertCheck('lab readout follows site distance and soil class', async () => {
+    assert.match(await evaluate(text('lab-readout')), /At 120\.0 km on Soft Basin E/);
+  });
+  await click('#run-selftests');
+  await waitFor(`document.getElementById('selftest-status').textContent.includes('of')`, 'self-tests run');
+  await assertCheck('in-page self-tests all pass in the browser', async () => {
+    assert.match(await evaluate(text('selftest-status')), /^(\d+) of \1 checks pass/);
+    assert.equal(await evaluate(`document.querySelectorAll('#selftest-list .st-fail').length`), 0);
+  });
+  await click('#brief-json');
+  const brief = JSON.parse(await waitForFile('quakesense-coastal-brief.json'));
+  await assertCheck('brief JSON carries a digest, five measures and the honest label', async () => {
+    assert.match(brief.sha256, /^[0-9a-f]{64}$/);
+    assert.equal(brief.payload.lab.interventions.length, 5);
+    assert.match(brief.digestNote, /not a signature/);
+    assert.equal(brief.payload.synthetic, true);
+    assert.match(await evaluate(text('brief-digest')), /^SHA-256 [0-9a-f]{64}$/);
+  });
+  await click('#brief-md');
+  const briefMd = await waitForFile('quakesense-coastal-brief.md');
+  await assertCheck('brief Markdown carries the comparator table', async () => {
+    assert.match(briefMd, /\| Intervention \| Mode \| Margin \|/);
+    assert.match(briefMd, /Community resilience package/);
+  });
+  await click('#brief-csv');
+  const briefCsv = await waitForFile('quakesense-coastal-brief.csv');
+  await assertCheck('brief CSV is injection-safe and complete', async () => {
+    assert.ok(briefCsv.startsWith('"record_type","key","value"'));
+    assert.match(briefCsv, /intervention gas-shutoff/);
+  });
+  await click('#brief-verify');
+  await assertCheck('integrity verify reports a digest match', async () => {
+    assert.match(await evaluate(text('brief-status')), /Integrity verified/);
+  });
+  await click('#brief-tamper');
+  await assertCheck('tamper demo proves the digest detects edits', async () => {
+    assert.match(await evaluate(text('brief-status')), /does not match/);
+  });
+  await click('#bookmark-btn');
+  await waitFor(`location.hash.startsWith('#qs=')`, 'bookmark hash applied');
+  const bmHash = await evaluate(`location.hash`);
+  check('bookmark link encodes the exercise in the URL hash',
+    bmHash.startsWith('#qs=') && bmHash.length > 20, bmHash.slice(0, 24));
+  await navigate(`${origin}?restored${bmHash}`);
+  await waitFor(`document.querySelectorAll('#presets button').length === 3`, 'restored render');
+  await assertCheck('bookmark restores preset and lab settings on reload', async () => {
+    assert.equal(await evaluate(`document.getElementById('lab-soil').value`), 'E');
+    assert.equal(await evaluate(`document.getElementById('lab-distance').value`), '120');
+    assert.match(await evaluate(text('lab-readout')), /At 120\.0 km on Soft Basin E/);
+    assert.ok(await evaluate(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
+  });
+
   // Drill card: language, print suppression, one-page PDF, focus return.
   await click('#open-drill');
   await waitFor(`${sel('drill')}.open === true`, 'drill dialog');
@@ -631,6 +694,22 @@ async function main() {
   await waitFor(`document.getElementById('station-list').textContent.includes('M1')`, 'mobile manual station');
   await assertCheck('no x-overflow after adding a manual station', async () => {
     assert.ok((await evaluate(`document.getElementById('station-list').textContent`)).includes('M1'));
+    assert.ok(await evaluate(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
+  });
+  await assertCheck('390x844: lab chart and comparator render without overflow', async () => {
+    assert.equal(await evaluate(`document.querySelectorAll('#retrofit tbody tr').length`), 5);
+    assert.ok((await evaluate(`document.querySelectorAll('#lab-chart path').length`)) >= 2);
+    assert.ok(await evaluate(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
+  });
+  await setField('#lab-distance', '40');
+  await assertCheck('mobile lab control updates the readout without overflow', async () => {
+    assert.match(await evaluate(text('lab-readout')), /At 40\.0 km on Rock B/);
+    assert.ok(await evaluate(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
+  });
+  await click('#run-selftests');
+  await waitFor(`document.getElementById('selftest-status').textContent.includes('of')`, 'mobile self-tests');
+  await assertCheck('mobile in-page self-tests all pass', async () => {
+    assert.match(await evaluate(text('selftest-status')), /^(\d+) of \1 checks pass/);
     assert.ok(await evaluate(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
   });
 

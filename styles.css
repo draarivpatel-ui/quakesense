@@ -412,7 +412,7 @@ main {
 .defs dt { font-weight: 700; color: var(--ink); margin-top: 0.4rem; }
 .defs dd { margin: 0.1rem 0 0; }
 
-.stations-block, .net-controls { min-width: 0; }
+.stations-block, .net-controls, .lab-grid > .panel { min-width: 0; }
 .stations-block { grid-column: 1 / -1; }
 .station-scroll { max-width: 100%; overflow-x: auto; padding: 6px; margin: -6px; }
 .station-scroll table { min-width: 34rem; }
@@ -526,10 +526,71 @@ dialog#drill::backdrop { background: rgba(22, 38, 38, 0.45); }
 .drill-authority { margin-top: 0.9rem; font-size: 0.74rem; color: var(--muted); }
 .drill-sub { order: 9; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--line); font-size: 0.72rem; color: var(--muted); }
 
+/* Distance lab and comparator */
+
+.lab-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+.lab-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.lab-controls input { width: 5.5rem; }
+.lab-controls select { max-width: 12rem; }
+.chart-frame { line-height: 0; max-width: 100%; overflow-x: auto; padding: 6px; margin: -6px; }
+#lab-chart {
+  display: block;
+  width: 100%;
+  min-width: 34rem;
+  height: auto;
+  background: var(--plot);
+  border-radius: 8px;
+}
+#lab-readout { margin-top: 0.7rem; }
+.lab-scroll { max-width: 100%; overflow-x: auto; padding: 6px; margin: -6px; }
+#retrofit { min-width: 38rem; }
+#retrofit td:nth-child(n+4) { font-family: var(--font-mono); font-size: 0.76rem; }
+.armed-no { color: var(--warn); font-weight: 700; }
+.margin-neg { color: var(--warn); font-weight: 700; }
+
+/* Readiness brief */
+
+.brief-panel .export-row { margin-top: 0.4rem; }
+.digest {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.brief-status { margin: 0.45rem 0 0; font-size: 0.8rem; color: var(--muted); min-height: 1.2em; }
+.selftest-list {
+  margin: 0.6rem 0 0;
+  padding-left: 1.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  columns: 2;
+  column-gap: 2rem;
+}
+.selftest-list li { margin: 0.22rem 0; break-inside: avoid; }
+.selftest-list .tag { margin-right: 0.45rem; }
+.st-pass-tag { color: var(--accent); border-color: var(--accent); }
+.st-fail-tag { color: var(--warn); border-color: var(--warn); }
+.st-name { color: var(--ink); }
+.st-detail { display: block; font-family: var(--font-mono); font-size: 0.72rem; color: var(--warn); margin-top: 0.15rem; overflow-wrap: anywhere; }
+
 /* Responsive */
 
 @media (max-width: 940px) {
-  .board, .details, .net-grid { grid-template-columns: 1fr; }
+  .board, .details, .net-grid, .lab-grid { grid-template-columns: 1fr; }
+  .selftest-list { columns: 1; }
   #map { height: 340px; }
   #traces { height: 300px; }
 }

@@ -46,8 +46,11 @@ drill-card action. A three-button scenario row. Primary split: large map
 plus transport on the left, three site lead cards plus alert status and
 counterfactual toggles on the right. Stacked Z/N/E plus STA/LTA seismogram
 below, then a two-column details band (network/model diagnostics and picker
-bench), exports last. At 940 px everything collapses to one column with the
-map first; at 390 px all controls wrap without horizontal overflow.
+bench), then the distance lab: an arrivals/attenuation SVG on the plotting
+bed beside the preparedness comparator, exports, and the readiness brief
+with its integrity checks last. At 940 px everything collapses to one
+column with the map first; at 390 px all controls wrap without horizontal
+overflow.
 
 ## The one motion
 

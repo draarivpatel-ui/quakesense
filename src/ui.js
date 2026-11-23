@@ -6,6 +6,8 @@ import { waveRadius, intensityRadius } from './seismology.js';
 import { PICKER, pickerSweep } from './picker.js';
 import { toGeoJSON, toCSV, makeAudit, DRILL } from './exports.js';
 import { drawMap, drawTraces } from './canvas.js';
+import { initLabUI } from './lab-ui.js';
+import { decodeState, encodeState } from './bookmark.js';
 
 const T_MAX = 45;
 const T_SNAPSHOT = 16.5;
@@ -56,10 +58,13 @@ const state = {
   mapProj: null,
   drillLang: 'en',
   siteNow: new Map(),
+  labDistance: 60,
+  labSoil: 'B',
 };
 
 let raf = 0;
 let lastTs = 0;
+let lab = null;
 
 function node(tag, className, text) {
   const n = document.createElement(tag);
@@ -124,6 +129,7 @@ function rebuild() {
   renderNetwork();
   renderDelta();
   renderTraceValues();
+  lab?.render();
   updateDynamic();
   return true;
 }
@@ -626,6 +632,55 @@ function wireExports() {
   });
 }
 
+// Bookmarks: the whole exercise state travels in the `#qs=` URL hash.
+
+function collectBookmarkState() {
+  const p = state.preset;
+  return {
+    v: 1, p: p.id,
+    lat: state.latency ?? p.latency,
+    k: state.triggerCount ?? p.triggerCount,
+    vel: state.velocity,
+    snr: state.snr,
+    dep: state.depth ?? p.source.z,
+    ex: state.epicenter?.x ?? p.source.x,
+    ey: state.epicenter?.y ?? p.source.y,
+    dns: state.denser,
+    fst: state.faster,
+    lab: { d: state.labDistance, soil: state.labSoil },
+  };
+}
+
+function onBookmark() {
+  try {
+    const token = encodeState(collectBookmarkState());
+    const href = `${location.origin}${location.pathname}#${token}`;
+    if (location.hash !== `#${token}`) location.hash = token;
+    try { navigator.clipboard?.writeText(href)?.catch(() => {}); } catch { /* clipboard is optional */ }
+    return `Bookmark ready: the exercise state is encoded in the URL and copied where the browser allows.`;
+  } catch (err) {
+    return `Bookmark failed: ${err.message}`;
+  }
+}
+
+function applyBookmark(bm) {
+  const p = state.preset;
+  if (bm.lat !== undefined) state.latency = bm.lat;
+  if (bm.k !== undefined) state.triggerCount = bm.k;
+  if (bm.vel !== undefined) state.velocity = bm.vel;
+  if (bm.snr !== undefined) state.snr = bm.snr;
+  if (bm.dep !== undefined) state.depth = bm.dep;
+  if (bm.ex !== undefined || bm.ey !== undefined) {
+    state.epicenter = { x: bm.ex ?? p.source.x, y: bm.ey ?? p.source.y };
+  }
+  if (bm.dns !== undefined) state.denser = bm.dns;
+  if (bm.fst !== undefined) state.faster = bm.fst;
+  if (bm.lab?.d !== undefined) state.labDistance = bm.lab.d;
+  if (bm.lab?.soil !== undefined) state.labSoil = bm.lab.soil;
+  syncControls();
+  rebuild();
+}
+
 // Drill card dialog
 
 function renderDrill(lang) {
@@ -766,7 +821,16 @@ function wire() {
 buildPresetNav();
 renderSweep();
 wire();
-selectPreset('coastal');
+lab = initLabUI({
+  getRun: () => state.run,
+  getPrefs: () => ({ distanceKm: state.labDistance, soilId: state.labSoil }),
+  setPrefs: (prefs) => { state.labDistance = prefs.distanceKm; state.labSoil = prefs.soilId; },
+  saveBlob,
+  onBookmark,
+});
+const boot = decodeState(location.hash);
+selectPreset(boot?.p ?? 'coastal');
+if (boot) applyBookmark(boot);
 setTime(T_SNAPSHOT);
 renderTraceValues();
 setStatus(`Paused at ${sec(T_SNAPSHOT)}. Play or scrub to follow the wavefronts.`);
