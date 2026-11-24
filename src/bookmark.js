@@ -11,6 +11,9 @@ const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const PRESET_IDS = new Set(PRESETS.map(p => p.id));
 const SOIL_IDS = new Set(SOIL_CLASSES.map(s => s.id));
 const VELOCITIES = new Set(['uniform', 'layered']);
+const NETWORK_STATION_LIMIT = 18;
+const MAX_MANUAL_STATIONS = 13;
+const MIN_MANUAL_SPACING_KM = 0.25;
 
 export function b64urlEncode(text) {
   const bytes = new TextEncoder().encode(text);
@@ -41,7 +44,8 @@ export function b64urlDecode(token) {
     if (c3 >= 0) bytes[n++] = ((c2 & 3) << 6) | c3;
   }
   try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, n));
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, n));
+    return b64urlEncode(text) === token ? text : null;
   } catch {
     return null;
   }
@@ -49,6 +53,36 @@ export function b64urlDecode(token) {
 
 const num = (v, min, max, integer = false) =>
   Number.isFinite(v) && (integer ? Number.isInteger(v) : true) && v >= min && v <= max;
+
+function validManualRows(rows) {
+  if (!Array.isArray(rows) || rows.length === 0 || rows.length > MAX_MANUAL_STATIONS) return false;
+  let previousSeq = 0;
+  for (const row of rows) {
+    if (!Array.isArray(row) || row.length !== 3) return false;
+    const [id, x, y] = row;
+    const match = typeof id === 'string' ? /^M([1-9]\d{0,3})$/.exec(id) : null;
+    if (!match || !num(x, -110, 110) || !num(y, -70, 70)) return false;
+    const seq = Number(match[1]);
+    if (seq <= previousSeq) return false;
+    previousSeq = seq;
+  }
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      if (Math.hypot(rows[i][1] - rows[j][1], rows[i][2] - rows[j][2]) < MIN_MANUAL_SPACING_KM) return false;
+    }
+  }
+  return true;
+}
+
+function validManualNetwork(state) {
+  if (state.ms === undefined) return true;
+  const preset = PRESETS.find(p => p.id === (state.p ?? 'coastal'));
+  if (!preset) return false;
+  const additionCount = state.dns === true ? preset.additions.length : 0;
+  if (preset.stations.length + additionCount + state.ms.length > NETWORK_STATION_LIMIT) return false;
+  return state.ms.every(([, x, y]) =>
+    preset.stations.every(station => Math.hypot(station.x - x, station.y - y) >= MIN_MANUAL_SPACING_KM));
+}
 
 // The bookmark schema. Every field is optional so a link may carry just a
 // preset; anything present is validated or the whole decode fails closed.
@@ -72,6 +106,7 @@ const SCHEMA = {
     if ('soil' in v && !SOIL_IDS.has(v.soil)) return false;
     return true;
   },
+  ms: validManualRows,
 };
 
 export function encodeState(state) {
@@ -82,6 +117,7 @@ export function encodeState(state) {
     if (!check(state[key])) throw new RangeError(`Invalid bookmark field ${key}`);
     out[key] = state[key];
   }
+  if (!validManualNetwork(out)) throw new RangeError('Invalid bookmark manual station network');
   return `qs=${b64urlEncode(canonicalJSON(out))}`;
 }
 
@@ -99,5 +135,7 @@ export function decodeState(hash) {
   if (typeof state !== 'object' || state === null || Array.isArray(state)) return null;
   const keys = Object.keys(state);
   if (!keys.length || keys.some(k => !(k in SCHEMA) || !SCHEMA[k](state[k]))) return null;
+  if (!validManualNetwork(state)) return null;
+  if (b64urlEncode(canonicalJSON(state)) !== token) return null;
   return state;
 }

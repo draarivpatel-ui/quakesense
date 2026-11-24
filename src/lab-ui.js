@@ -192,9 +192,16 @@ export function initLabUI({ getRun, getPrefs, setPrefs, saveBlob, onBookmark }) 
     return { distanceKm: getPrefs().distanceKm, soilId: getPrefs().soilId };
   }
 
+  function invalidateBrief() {
+    lastBrief = null;
+    setText(els.digest, '');
+    setText(els.briefStatus, '');
+  }
+
   function render() {
     const run = getRun();
     if (!run) return;
+    invalidateBrief();
     const { distanceKm, soilId } = getPrefs();
     if (els.soil.value !== soilId) els.soil.value = soilId;
     if (Number(els.distance.value) !== distanceKm) els.distance.value = String(distanceKm);

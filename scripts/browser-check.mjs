@@ -574,6 +574,26 @@ async function main() {
   await assertCheck('tamper demo proves the digest detects edits', async () => {
     assert.match(await evaluate(text('brief-status')), /does not match/);
   });
+  const exportedDigest = await evaluate(text('brief-digest'));
+  await setField('#lab-distance', '110');
+  await assertCheck('changing the exercise invalidates the displayed brief digest', async () => {
+    assert.equal((await evaluate(text('brief-digest'))).trim(), '');
+  });
+  await click('#brief-verify');
+  await assertCheck('verify after a state change rebuilds the digest for the current exercise', async () => {
+    const regenerated = await evaluate(text('brief-digest'));
+    assert.match(regenerated, /^SHA-256 [0-9a-f]{64}$/);
+    assert.notEqual(regenerated, exportedDigest);
+    assert.match(await evaluate(text('brief-status')), /Integrity verified/);
+  });
+  await setField('#lab-distance', '120');
+
+  await setField('#cx', '-20'); await setField('#cy', '-20');
+  await click('#coordinates button[value="station"]');
+  await waitFor(`document.getElementById('station-list').textContent.includes('M1')`, 'coastal manual station placed');
+  await assertCheck('manual station is part of the configured exercise before bookmarking', async () => {
+    assert.equal(await evaluate(`document.querySelectorAll('#station option').length`), 7);
+  });
   await click('#bookmark-btn');
   await waitFor(`location.hash.startsWith('#qs=')`, 'bookmark hash applied');
   const bmHash = await evaluate(`location.hash`);
@@ -581,10 +601,12 @@ async function main() {
     bmHash.startsWith('#qs=') && bmHash.length > 20, bmHash.slice(0, 24));
   await navigate(`${origin}?restored${bmHash}`);
   await waitFor(`document.querySelectorAll('#presets button').length === 3`, 'restored render');
-  await assertCheck('bookmark restores preset and lab settings on reload', async () => {
+  await assertCheck('bookmark restores preset, lab settings and the manual station on reload', async () => {
     assert.equal(await evaluate(`document.getElementById('lab-soil').value`), 'E');
     assert.equal(await evaluate(`document.getElementById('lab-distance').value`), '120');
     assert.match(await evaluate(text('lab-readout')), /At 120\.0 km on Soft Basin E/);
+    assert.equal(await evaluate(`document.querySelectorAll('#station option').length`), 7);
+    assert.match(await evaluate(`document.getElementById('station-list').textContent`), /M1/);
     assert.ok(await evaluate(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`));
   });
 

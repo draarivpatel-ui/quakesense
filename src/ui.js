@@ -648,6 +648,7 @@ function collectBookmarkState() {
     dns: state.denser,
     fst: state.faster,
     lab: { d: state.labDistance, soil: state.labSoil },
+    ...(state.manual.length ? { ms: state.manual.map(station => [station.id, station.x, station.y]) } : {}),
   };
 }
 
@@ -677,6 +678,13 @@ function applyBookmark(bm) {
   if (bm.fst !== undefined) state.faster = bm.fst;
   if (bm.lab?.d !== undefined) state.labDistance = bm.lab.d;
   if (bm.lab?.soil !== undefined) state.labSoil = bm.lab.soil;
+  if (bm.ms === undefined) {
+    state.manual = [];
+    state.manualSeq = 0;
+  } else {
+    state.manual = bm.ms.map(([id, x, y]) => ({ id, name: `Manual ${id.slice(1)}`, x, y }));
+    state.manualSeq = Number(bm.ms[bm.ms.length - 1][0].slice(1));
+  }
   syncControls();
   rebuild();
 }

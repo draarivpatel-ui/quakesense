@@ -181,6 +181,59 @@ test('bookmark tokens survive a URL parse and keep out padding', () => {
   assert.doesNotMatch(token.slice(3), /[+/=]/);
 });
 
+test('base64url rejects nonzero trailing bits instead of decoding an alias', () => {
+  assert.equal(b64urlDecode('QR'), null);
+  assert.equal(b64urlDecode('QQ'), 'A');
+});
+
+test('bookmark decode requires the canonical JSON serialization, not any equivalent JSON', () => {
+  assert.deepEqual(decodeState(`#qs=${b64urlEncode('{"p":"coastal","v":1}')}`), { p: 'coastal', v: 1 });
+  for (const text of [
+    '{"v":1,"p":"coastal"}',
+    '{ "p": "coastal", "v": 1 }',
+    '{"p":"coastal","v":1}\n',
+  ]) {
+    assert.equal(decodeState(`#qs=${b64urlEncode(text)}`), null, `accepted noncanonical ${text}`);
+  }
+});
+
+test('bookmarks preserve manual station identity, coordinates and order', () => {
+  const state = { v: 1, p: 'rural', ms: [['M1', -16, -16], ['M3', -20.5, 8.5]] };
+  const token = encodeState(state);
+  assert.match(token, /^qs=[A-Za-z0-9_-]+$/);
+  assert.deepEqual(decodeState(`#${token}`), state);
+});
+
+test('bookmark manual stations fail closed when malformed or impossible in the workbench', () => {
+  for (const ms of [
+    [],
+    [['M1', -16, -16], ['M1', 10, 10]],
+    [['M2', -16, -16], ['M1', 10, 10]],
+    [['M1', -16, -16], ['M2', -16.1, -16.1]],
+    [['X1', -16, -16]],
+    [['M1', -111, -16]],
+    [['M1', -16, -71]],
+    ['M1', -16, -16],
+  ]) {
+    assert.throws(() => encodeState({ v: 1, p: 'rural', ms }), RangeError, JSON.stringify(ms));
+  }
+});
+
+test('bookmark manual stations cannot exceed the network cap or collide with fixed stations', () => {
+  const crowded = {
+    v: 1,
+    p: 'rural',
+    dns: true,
+    ms: Array.from({ length: 13 }, (_, i) => [`M${i + 1}`, -100 + i, -60]),
+  };
+  assert.throws(() => encodeState(crowded), RangeError);
+  assert.equal(decodeState(`#qs=${b64urlEncode(canonicalJSON(crowded))}`), null);
+
+  const colliding = { v: 1, p: 'rural', ms: [['M1', 10, 17]] };
+  assert.throws(() => encodeState(colliding), RangeError);
+  assert.equal(decodeState(`#qs=${b64urlEncode(canonicalJSON(colliding))}`), null);
+});
+
 test('the in-page self-test suite passes everywhere it runs', () => {
   const results = runSelfTests();
   assert.ok(results.length >= 15, `expected at least 15 checks, got ${results.length}`);

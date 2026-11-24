@@ -48,6 +48,13 @@ test('shipped source and docs avoid long dashes and authoring-tool copy', () => 
   }
 });
 
+test('mode and self-test results are exposed as status messages', () => {
+  for (const id of ['mode-status', 'selftest-status']) {
+    const tag = html.match(new RegExp(`<p\\b[^>]*\\bid="${id}"[^>]*>`))?.[0] ?? '';
+    assert.match(tag, /\brole="status"/, `${id} is not a polite status region`);
+  }
+});
+
 test('local server serves only application assets and refuses sensitive paths', async t => {
   const server = serve().listen(0, '127.0.0.1');
   await once(server, 'listening');
