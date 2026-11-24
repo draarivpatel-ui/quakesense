@@ -697,7 +697,6 @@ function renderDrill(lang) {
   article.lang = lang;
   article.replaceChildren();
   const title = node('h2', null, data.title);
-  title.id = 'drill-title';
   article.append(title);
   if (data.subtitle) article.append(node('p', 'drill-sub', data.subtitle));
   const ol = node('ol');

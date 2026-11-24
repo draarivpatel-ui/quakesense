@@ -81,35 +81,13 @@ h1 {
   letter-spacing: -0.01em;
 }
 
-.head-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  flex-wrap: wrap;
-  margin-right: auto;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.7rem;
-  border: 1.5px solid var(--accent);
-  border-radius: 999px;
-  color: var(--accent);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.chip-mark { flex: none; }
+.app-head h1 { margin-right: auto; }
 
 .exercise-note {
-  margin: 0;
-  max-width: 40ch;
-  font-size: 0.72rem;
-  line-height: 1.4;
+  margin: 0.35rem 0 0;
+  max-width: 60ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
   color: var(--muted);
 }
 
@@ -612,7 +590,6 @@ dialog#drill::backdrop { background: rgba(22, 38, 38, 0.45); }
     gap: 0.5rem 0.7rem;
     padding: 0.8rem 0.9rem;
   }
-  .head-meta { grid-column: 1 / -1; grid-row: 2; margin-right: 0; }
   main { padding: 0.8rem 0.9rem 1.5rem; }
   #map { height: 300px; }
   #traces { height: 280px; }
