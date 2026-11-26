@@ -136,6 +136,50 @@ export function drawMap(canvas, run, time, solution, selected) {
   ctx.rect(ox, oy, mw, mh);
   ctx.clip();
 
+  // Annotations are queued and placed after every mark so text sits on top.
+  // A box test drops labels that would collide, which keeps the dense mobile
+  // map readable; lower priority numbers win the space.
+  const labelQueue = [];
+  const occupied = [];
+  const markBox = (x, y, r) => occupied.push({ x0: x - r, y0: y - r, x1: x + r, y1: y + r });
+  const queueLabel = (text, x, y, color, align = 'center', size = 9, priority = 50, anchor = null) => {
+    labelQueue.push({ text, x, y, color, align, size, priority, anchor });
+  };
+  const flushLabels = () => {
+    const placed = occupied.slice();
+    const inFrame = (box) => box.x0 >= ox + 1 && box.x1 <= ox + mw - 1 && box.y0 >= oy + 1 && box.y1 <= oy + mh - 1;
+    const fits = (box) => inFrame(box) && !placed.some(b => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0);
+    const boxFor = (item, x, y, align) => {
+      ctx.font = `${item.size}px ${MONO}`;
+      const tw = ctx.measureText(item.text).width;
+      const x0 = align === 'center' ? x - tw / 2 : align === 'right' ? x - tw : x;
+      return { x0: x0 - 1, y0: y - item.size * 0.62, x1: x0 + tw + 1, y1: y + item.size * 0.62 };
+    };
+    labelQueue.sort((a, b) => a.priority - b.priority);
+    for (const item of labelQueue) {
+      // First choice, then mirror across the marker, then either flank. A
+      // label that cannot find a clear slot is dropped rather than stacked.
+      const spots = [[item.x, item.y, item.align]];
+      if (item.anchor) {
+        spots.push(
+          [item.x, 2 * item.anchor.y - item.y, item.align],
+          [item.anchor.x + 9, item.anchor.y, 'left'],
+          [item.anchor.x - 9, item.anchor.y, 'right'],
+          [item.anchor.x, item.anchor.y - 12, 'center'],
+          [item.anchor.x + 14, item.anchor.y + 16, 'left'],
+          [item.anchor.x - 14, item.anchor.y + 16, 'right'],
+        );
+      }
+      for (const [x, y, align] of spots) {
+        const box = boxFor(item, x, y, align);
+        if (!fits(box)) continue;
+        placed.push(box);
+        label(ctx, item.text, x, y, item.color, align, item.size);
+        break;
+      }
+    }
+  };
+
   // Faint abstract survey contours and modeled isoseismal rings.
   ctx.strokeStyle = FAINT;
   ctx.lineWidth = 1;
@@ -157,7 +201,7 @@ export function drawMap(canvas, run, time, solution, selected) {
     ctx.strokeStyle = 'rgba(247,244,235,0.14)';
     ctx.stroke();
     const top = project(run.source.x, run.source.y + r);
-    label(ctx, `MMI ${level === 6 ? 'VI' : 'IV'}`, top.x + 4, top.y + 8, SUBTLE, 'left', 9);
+    queueLabel(`MMI ${level === 6 ? 'VI' : 'IV'}`, top.x + 4, top.y + 8, SUBTLE, 'left', 9, 70);
   }
   ctx.setLineDash([]);
 
@@ -172,7 +216,7 @@ export function drawMap(canvas, run, time, solution, selected) {
     ctx.strokeStyle = P_WAVE;
     ctx.lineWidth = 1.6;
     ctx.stroke();
-    label(ctx, 'P', epi.x + rP * k * 0.72, epi.y - rP * k * 0.72, P_WAVE, 'center', 11);
+    queueLabel('P', epi.x + rP * k * 0.72, epi.y - rP * k * 0.72, P_WAVE, 'center', 11, 18);
   }
   if (rS !== null && rS > 0) {
     circle(ctx, epi.x, epi.y, rS * k);
@@ -181,7 +225,7 @@ export function drawMap(canvas, run, time, solution, selected) {
     ctx.strokeStyle = S_WAVE;
     ctx.lineWidth = 1.6;
     ctx.stroke();
-    label(ctx, 'S', epi.x + rS * k * 0.72, epi.y - rS * k * 0.72, S_WAVE, 'center', 11);
+    queueLabel('S', epi.x + rS * k * 0.72, epi.y - rS * k * 0.72, S_WAVE, 'center', 11, 18);
   }
 
   // Hatched blind footprint: the area the S front has already passed when
@@ -206,7 +250,7 @@ export function drawMap(canvas, run, time, solution, selected) {
     ctx.lineWidth = 1.4;
     ctx.stroke();
     ctx.setLineDash([]);
-    label(ctx, 'blind zone', epi.x, epi.y - r - 8, S_WAVE, 'center', 9);
+    queueLabel('blind zone', epi.x, epi.y - r - 8, S_WAVE, 'center', 9, 35);
   }
 
   // Arrival links from the source to stations and target sites.
@@ -255,8 +299,10 @@ export function drawMap(canvas, run, time, solution, selected) {
       ctx.lineWidth = 1.6;
       ctx.stroke();
     }
-    label(ctx, st.id, p.x, p.y - 13, live ? P_WAVE : TEXT, 'center', 9);
-    if (live) label(ctx, `${st.detected.toFixed(1)}s`, p.x, p.y + 12, P_WAVE, 'center', 8);
+    markBox(p.x, p.y - 0.5, st.id === selId ? 13 : 7);
+    const idLift = st.id === selId ? 20 : 13;
+    queueLabel(st.id, p.x, p.y - idLift, live ? P_WAVE : TEXT, 'center', 9, st.id === selId ? 30 : 60, p);
+    if (live) queueLabel(`${st.detected.toFixed(1)}s`, p.x, p.y + (st.id === selId ? 20 : 12), P_WAVE, 'center', 8, 65, p);
   }
 
   // Target sites: squares whose fill shows warning state over time.
@@ -269,7 +315,8 @@ export function drawMap(canvas, run, time, solution, selected) {
     ctx.lineWidth = 1.4;
     ctx.fillRect(p.x - 4.5, p.y - 4.5, 9, 9);
     ctx.strokeRect(p.x - 4.5, p.y - 4.5, 9, 9);
-    label(ctx, s.name, p.x, p.y + 13, TEXT, 'center', 9);
+    markBox(p.x, p.y, 6);
+    queueLabel(s.name, p.x, p.y + 13, TEXT, 'center', 9, 5, p);
   }
 
   // True synthetic epicenter: ringed cross.
@@ -283,7 +330,8 @@ export function drawMap(canvas, run, time, solution, selected) {
   ctx.moveTo(epi.x, epi.y - 10);
   ctx.lineTo(epi.x, epi.y + 10);
   ctx.stroke();
-  label(ctx, 'true source', epi.x + 12, epi.y - 11, PAPER, 'left', 9);
+  markBox(epi.x, epi.y, 11);
+  queueLabel('true source', epi.x - 12, epi.y - 11, PAPER, 'right', 9, 10, epi);
 
   // Located estimate and 95 percent confidence ellipse when resolved.
   if (solution && solution.ok) {
@@ -308,8 +356,10 @@ export function drawMap(canvas, run, time, solution, selected) {
     ctx.moveTo(q.x, q.y - 7);
     ctx.lineTo(q.x, q.y + 7);
     ctx.stroke();
-    label(ctx, 'est', q.x + 10, q.y + 10, P_WAVE, 'left', 9);
+    markBox(q.x, q.y, 8);
+    queueLabel('est', q.x + 10, q.y + 10, P_WAVE, 'left', 9, 15, q);
   }
+  flushLabels();
   ctx.restore();
 
   // Scale bar

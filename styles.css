@@ -606,12 +606,55 @@ dialog#drill::backdrop { background: rgba(22, 38, 38, 0.45); }
   }
 }
 
-/* Print: drill card only */
+/* Print: readiness summary, or the drill card while its dialog is open */
+
+#print-sheet { display: none; }
 
 @media print {
   @page { margin: 0.7in; }
   body { background: #fff; }
+  .app-head, main, .app-foot { display: none !important; }
+  body:has(> dialog#drill:not([open])) #print-sheet { display: block !important; }
   body:has(> dialog#drill[open]) > *:not(dialog#drill) { display: none !important; }
+  #print-sheet h1 {
+    margin: 0 0 2mm;
+    font-family: var(--font-display);
+    font-size: 18pt;
+    line-height: 1.2;
+  }
+  #print-sheet .ps-meta { margin: 0 0 5mm; font-size: 8.5pt; color: #444; }
+  #print-sheet h2 {
+    margin: 5mm 0 1.5mm;
+    font-family: var(--font-body);
+    font-size: 9pt;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #444;
+    border-bottom: 0.8pt solid #999;
+    padding-bottom: 1mm;
+  }
+  #print-sheet p { margin: 0 0 1.5mm; font-size: 9pt; line-height: 1.45; color: #111; }
+  #print-sheet table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  #print-sheet th, #print-sheet td {
+    padding: 1.2mm 2mm 1.2mm 0;
+    text-align: left;
+    border-bottom: 0.4pt solid #bbb;
+    color: #111;
+  }
+  #print-sheet th {
+    font-size: 7pt;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #444;
+    border-bottom: 0.8pt solid #666;
+  }
+  #print-sheet .ps-note {
+    margin-top: 5mm;
+    padding-top: 2mm;
+    border-top: 1px solid #999;
+    font-size: 8pt;
+    color: #444;
+  }
   dialog#drill[open] {
     display: block;
     position: static;

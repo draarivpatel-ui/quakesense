@@ -129,9 +129,77 @@ function rebuild() {
   renderNetwork();
   renderDelta();
   renderTraceValues();
+  renderPrintSheet();
   lab?.render();
   updateDynamic();
   return true;
+}
+
+// One-page paper handoff for the current exercise. The drill dialog has its
+// own print path; this sheet covers a plain browser print with the dialog
+// closed, where printing the whole interactive workbench would be useless.
+function renderPrintSheet() {
+  const sheet = document.getElementById('print-sheet');
+  if (!sheet || !state.run) return;
+  const r = state.run;
+  const p = state.preset;
+  const title = node('h1', null, 'QuakeSense readiness summary');
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const meta = node('p', 'ps-meta',
+    `${p.name} | snapshot at ${sec(state.time)} | generated ${stamp} UTC`);
+  const sheetParts = [title, meta];
+
+  sheetParts.push(node('h2', null, 'Alert and blind zone'));
+  if (r.alert === null) {
+    sheetParts.push(node('p', null, 'No alert is modeled for this configuration.'));
+  } else {
+    const trig = r.stations.filter((st) => st.detected !== null && st.detected <= state.time).length;
+    sheetParts.push(node('p', null,
+      `Modeled alert at ${sec(r.alert)}. ${trig} of ${r.stations.length} stations have triggered by the snapshot.`));
+  }
+  if (r.alert === null || !r.blind || r.blind.radius === null) {
+    sheetParts.push(node('p', null, 'Blind zone: not applicable without an alert.'));
+  } else if (r.blind.radius === 0) {
+    sheetParts.push(node('p', null, 'No surface blind zone under the current model.'));
+  } else {
+    sheetParts.push(node('p', null,
+      `Blind zone: the S wave reaches within ${f1(r.blind.radius)} km before the alert (${f1(r.blind.area)} km²).`));
+  }
+
+  sheetParts.push(node('h2', null, 'Warning at key sites'));
+  const table = node('table');
+  const thead = node('thead');
+  const headRow = node('tr');
+  for (const text of ['Site', 'Kind', 'S arrival', 'Modeled lead', 'Illustrative MMI']) {
+    headRow.append(node('th', null, text));
+  }
+  thead.append(headRow);
+  const tbody = node('tbody');
+  for (const s of r.sites) {
+    const row = node('tr');
+    row.append(node('td', null, s.name));
+    row.append(node('td', null, KIND_LABEL[s.kind] ?? s.kind));
+    row.append(node('td', null, s.s === null ? 'n/a' : sec(s.s)));
+    row.append(node('td', null, s.lead === null ? 'No alert' : s.lead === 0 ? 'No lead' : sec(s.lead)));
+    row.append(node('td', null, s.mmi === null || s.mmi === undefined ? 'n/a' : f1(s.mmi)));
+    tbody.append(row);
+  }
+  table.append(thead, tbody);
+  sheetParts.push(table);
+
+  sheetParts.push(node('h2', null, 'Network'));
+  const src = r.source;
+  sheetParts.push(node('p', null,
+    `Synthetic source (${f1(src.x)}, ${f1(src.y)}) km, depth ${f1(src.z)} km, magnitude ${f1(src.magnitude)}.`));
+  sheetParts.push(node('p', null,
+    `${r.stations.length} stations, ${r.settings.triggerCount} required for an alert, ` +
+    `${f1(r.settings.latency)} s telemetry latency, ${r.model?.id ?? state.velocity} velocity model.`));
+  sheetParts.push(node('p', null,
+    'Studio estimates: the located source, lead times and MMI values are modeled from the synthetic exercise, not measured.'));
+
+  sheetParts.push(node('p', 'ps-note',
+    'Synthetic exercise. Not a live warning or a replacement for USGS ShakeAlert. Every event, station, trace and warning is simulated offline.'));
+  sheet.replaceChildren(...sheetParts);
 }
 
 // Rendering
@@ -818,6 +886,7 @@ function wire() {
   wireExports();
   wireDrill();
   wireKeys();
+  addEventListener('beforeprint', renderPrintSheet);
   const ro = new ResizeObserver(() => draw());
   ro.observe(els.map);
   ro.observe(els.traces);
