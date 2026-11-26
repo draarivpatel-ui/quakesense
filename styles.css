@@ -3,6 +3,7 @@
   --ink: #162626;
   --muted: #52645e;
   --line: #cdd4c9;
+  --control-line: #657260;
   --plot: #142826;
   --p-wave: #8de1ca;
   --s-wave: #f5b47d;
@@ -123,7 +124,7 @@ button, input, select { font: inherit; color: inherit; }
 
 .mode-btn {
   padding: 0.34rem 0.7rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-line);
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
@@ -141,7 +142,7 @@ button, input, select { font: inherit; color: inherit; }
 
 input[type="number"], select {
   padding: 0.42rem 0.55rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-line);
   border-radius: 6px;
   background: var(--card);
   font-size: 0.85rem;
@@ -174,7 +175,7 @@ main {
   align-items: flex-start;
   gap: 0.15rem;
   padding: 0.55rem 0.95rem;
-  border: 1.5px solid var(--line);
+  border: 1.5px solid var(--control-line);
   border-radius: 9px;
   background: var(--card);
   cursor: pointer;
@@ -582,6 +583,13 @@ dialog#drill::backdrop { background: rgba(22, 38, 38, 0.45); }
     color: var(--muted);
   }
 }
+@media (max-width: 720px) {
+  .btn, .mode-btn { min-height: 44px; }
+  input[type="number"], select { min-height: 44px; }
+  input[type="range"] { min-height: 44px; }
+  .check { min-height: 44px; }
+}
+
 @media (max-width: 430px) {
   .app-head {
     display: grid;
